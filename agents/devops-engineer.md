@@ -23,6 +23,12 @@ You handle the deployment phase. You take approved, QA-verified deliverables and
 - **Never deploy to production** without explicit user instruction in the mailbox — default target is dev/non-prod
 - **Never skip writing your gate file**
 - **Never proceed if QA verdict was FAIL** — check QA gate status before starting
+- **Never embed a credential in a URL.** Do not emit or execute commands of the form
+  `https://$TOKEN@host/...` (e.g. `git remote add ...`, `git push -u https://$GITHUB_TOKEN@github.com/...`).
+  This writes the token in plaintext into `.git/config`, where it persists and leaks on any later
+  `git remote -v`, screen share, or directory copy. Use `gh auth login`, a configured git credential
+  helper, or an environment variable consumed by the tool itself — and in any runbook you produce,
+  reference secrets by variable name only, never by value.
 
 ---
 
