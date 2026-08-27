@@ -36,13 +36,27 @@ Every agent reads and writes files according to these schemas. Do not deviate.
 │   └── gate-N.md         ← Per-phase deliverable gate
 └── agents/
     ├── spec/mailbox.md
-    ├── backend-1/mailbox.md
+    ├── architect/mailbox.md
+    ├── brand/mailbox.md         ← Brand phase (user-facing work)
+    ├── uiux/mailbox.md          ← UX Design + Design Review passes
+    ├── backend-1/mailbox.md     ← backend-1 .. backend-N (CTO-scaled)
     ├── backend-2/mailbox.md
-    ├── frontend-1/mailbox.md
+    ├── frontend-1/mailbox.md    ← frontend-1 .. frontend-N (CTO-scaled)
     ├── frontend-2/mailbox.md
-    ├── qa/mailbox.md
-    └── devops/mailbox.md
+    ├── integration/mailbox.md   ← merges lanes → integration branch; promotes to main post-UAT
+    ├── code-reviewer-1/mailbox.md  ← static QA (code-reviewer-1..N + a seam pass)
+    ├── e2e/mailbox.md           ← execution QA (Playwright); optional/gated
+    ├── devops/mailbox.md
+    └── uat/mailbox.md           ← post-deployment UAT + learning loop
 ```
+
+Engineer lanes are not capped at 2 — the CTO creates `backend-1..N` / `frontend-1..N` mailboxes, one per
+non-overlapping scope lane from `design.md`. Extra artifacts produced by specialist phases:
+`brand.md` (Brand), `ux-spec.md` + **`ux-review.html`** (UI/UX — the latter a self-contained visual
+journey/design page published via the Artifact tool to a shareable link for the product owner's review),
+`code-review-report(-N).md` (Code Reviewer), `e2e-report.md` (E2E Verifier), `uat-report.md` +
+`uat-resolution.md` + `learning-proposals.md` (UAT). Integration produces the `integration/<task-id>`
+branch (not a file). Note: the single `qa/` mailbox is replaced by `code-reviewer-1..N/` + `e2e/`.
 
 Archive: `~/.claude/orchestration/archive/<task-id>/` — completed tasks moved here.
 
@@ -168,7 +182,7 @@ status: draft
 - **Request body:** `{ field: type }`
 - **Response (success):** `{ field: type }` — HTTP <status>
 - **Response (error):** `{ error: string }` — HTTP <status>
-- **Owner:** backend-1 | backend-2
+- **Owner:** backend-1..N | frontend-1..N
 
 ## Data Models
 ### <ModelName>
@@ -248,17 +262,45 @@ user-approved: <ISO date or blank>
 
 ## Gate Sequence
 
-| Gate | Agent(s)        | Deliverable          | Acceptance Criteria                    |
-|------|-----------------|----------------------|----------------------------------------|
-| G-2  | Spec Specialist | spec.md              | All requirements captured, no gaps     |
-| G-3  | Backend-1       | PR raised            | Tests pass, PM reviewed, no conflicts  |
-| G-4  | QA              | Test results         | All acceptance criteria pass           |
-| G-5  | DevOps          | Deployed to env      | Health check passes                    |
+Canonical phase order for a standard **user-facing** delivery (CTO omits phases that don't apply):
+
+| Gate | Agent(s)             | Deliverable            | Acceptance Criteria                     |
+|------|----------------------|------------------------|-----------------------------------------|
+| G-2  | Spec Specialist      | spec.md                | All requirements + UX flows captured    |
+| G-3  | Architect            | design.md              | Contracts + N scope lanes, no overlap   |
+| G-3b | Brand Agent          | brand.md + config      | Brand centralized + configurable        |
+| G-3c | UI/UX Engineer       | ux-spec.md + **ux-review.html** | Every screen + all 4 states designed |
+| G-3d | **Human (product owner)** | **UX Design Review (published link)** | Owner approves the end-to-end journey/design BEFORE any code |
+| G-4a…| Backend-1..N         | PR raised (per lane, green) | Tests pass, individually green      |
+| G-4x…| Frontend-1..N        | PR raised (per lane, green) | Implements approved ux-spec + brand config |
+| G-5  | Integration Engineer | `integration/<task-id>` branch | Lanes merged, conflicts resolved, re-verified GREEN |
+| G-6a…| Code Reviewer (1..N) | code-review-report(s)  | Static review + build/lint/unit green (on integration branch) |
+| G-6b | UI/UX Engineer       | Design QA              | Built UI meets DA-N design criteria     |
+| G-7  | E2E Verifier         | e2e-report.md (**optional**) | User journeys pass in a real browser (Playwright + evidence) |
+| G-8  | DevOps               | Deployed to env        | Health check passes (deploys the integration branch) |
+| G-9  | UAT Engineer         | uat-report.md          | User feedback triaged + resolved/loop   |
+| G-10 | Integration Engineer | PR integration→main merged | Promoted after UAT; lane branches retired |
 
 ## Dependencies
-- G-3 blocked by G-2 (spec must exist before implementation starts)
-- G-4 blocked by G-3 (tests need code)
-- G-5 blocked by G-4 (deploy after QA passes)
+- Design phase (G-3/G-3b/G-3c) blocked by G-2 (spec must exist first)
+- **UX Design Review (G-3d) is a human gate** — the product owner reviews the published `ux-review.html`
+  link and approves the end-to-end journey/design. **Implementation is blocked by G-3d** — no code is
+  written until the design is signed off (rejections loop back to UI/UX to revise + re-publish).
+- Implementation also needs design.md + brand config + the approved ux-spec. Each lane must be
+  **individually green** before its gate is approved (green-before-merge).
+- **Integration (G-5) blocked by all implementation lanes** — the Integration Engineer merges the
+  confirmed-done lanes into `integration/<task-id>`, resolves conflicts, and re-verifies GREEN. QA runs
+  only after this. A red integration branch bounces the offending lane back; it never reaches QA.
+- **All QA runs on the integration branch:** Code Review (G-6a, static, N-scalable) + Design QA (G-6b)
+  are blocked by Integration. **E2E Verification (G-7) is optional** — gated after Code Review, the
+  operator may skip it (recorded, with a reason), but it is the authoritative pass and runs by default.
+- **DevOps (G-8) deploys the integration branch**, blocked by the QA gate(s) passing.
+- **UAT (G-9) blocked by DevOps** — the user can only give real feedback once it's deployed. On
+  CHANGES-REQUESTED, UAT routes a resolution to the Architect → fix loop (lane → re-integrate → re-QA →
+  re-deploy) → UAT again.
+- **Promote (G-10) blocked by UAT ACCEPTED** — the Integration Engineer raises `integration/<task-id>` →
+  `main`; on merge, the lane branches are retired. `main` only ever receives UAT-accepted code.
+- After UAT ACCEPTED (and before/with Promote): the CTO runs the **Learning Loop** (see below).
 
 ## PM Sign-Off Notes
 [Filled by PM: any conflicts resolved, ownership assignments, scope clarifications]
@@ -275,7 +317,7 @@ Written by the agent completing the phase. CTO reads this to determine what to s
 task-id: <task-id>
 gate: <N>
 label: <e.g. "Understanding Confirmation" | "Plan Approval" | "Spec Approval" | "Backend PR">
-written-by: cto | pm | spec | backend-1 | backend-2 | frontend-1 | frontend-2 | qa | devops
+written-by: cto | pm | spec | architect | brand | uiux | backend-1..N | frontend-1..N | integration | code-reviewer[-N] | e2e | devops | uat
 status: pending | approved | rejected
 approved-at: <ISO date or blank>
 ---
@@ -308,7 +350,7 @@ Written by CTO (or PM) to assign work. The execution agent reads this on start.
 task-id: <task-id>
 project: <slug>
 project-config: ~/.claude/orchestration/projects/<slug>.md
-assigned-to: <role: spec | backend-1 | backend-2 | frontend-1 | frontend-2 | qa | devops>
+assigned-to: <role: spec | architect | brand | uiux | backend-1..N | frontend-1..N | integration | code-reviewer[-N] | e2e | devops | uat>
 assigned-by: cto
 pm-approved: true | false
 pm-approved-at: <ISO date or blank>
@@ -348,18 +390,42 @@ pending → approved (user types /approve)
 ## Task Status Lifecycle
 
 ```
-pending-gate-0 → pending-gate-1 → active → pending-gate-N → complete
+pending-gate-0 → pending-gate-1 → active → pending-gate-N → uat → learning-loop → complete
 ```
 
-CTO updates `brief.md` status field as the task advances.
+CTO updates `brief.md` status field as the task advances. For standard user-facing deliveries the final
+substantive gate is **UAT** (post-DevOps); after UAT is ACCEPTED the CTO runs the Learning Loop before
+archiving.
+
+---
+
+## Learning Loop (post-UAT)
+
+After a delivery is accepted at UAT, the system captures what it learned so future builds improve.
+
+1. The UAT Engineer has already produced `learning-proposals.md` — reusable technical/UX insights
+   (explicitly **not** personal preferences), each mapped to the agent whose definition it should
+   improve, with the exact proposed edit.
+2. The CTO presents these as a **Learning gate**: the user approves, edits, or rejects each proposal.
+3. On approval, the proposed edits are applied to the relevant agent definitions in the harness
+   (`~/.claude/agents/orchestration/<agent>.md` and the source repo), so every subsequent task benefits.
+4. Rejected/deferred proposals are recorded in the archived task for future reference.
+
+The Learning Loop is what makes the harness compound: durable lessons become permanent agent behavior,
+while project-specific preferences stay with the project.
 
 ---
 
 ## Agent Naming in Mailboxes
 
-When the CTO runs two Backend or Frontend agents in parallel, they are addressed as:
-- `backend-1` and `backend-2`
-- `frontend-1` and `frontend-2`
+When the CTO runs multiple Backend or Frontend agents in parallel, they are addressed as:
+- `backend-1`, `backend-2`, … `backend-N`
+- `frontend-1`, `frontend-2`, … `frontend-N`
 
-Each gets its own mailbox subdirectory. The CTO assigns non-overlapping scope to each.
-The PM verifies there is zero overlap in scope before marking `pm-approved: true`.
+N is set by the CTO to match the number of independent scope lanes in `design.md` — there is no fixed
+cap of 2. Each gets its own mailbox subdirectory. The CTO assigns non-overlapping scope to each; the PM
+verifies **zero overlap across all N** before marking any `pm-approved: true`. Choose the smallest N that
+keeps lanes free of shared-file contention — parallelism only helps when the work is genuinely
+independent.
+
+Specialist agents use fixed mailbox names: `brand`, `uiux`, `uat`.

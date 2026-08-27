@@ -23,7 +23,7 @@ Your job is to translate a specification into a concrete technical design that p
 - **Never invent requirements** not present in spec.md
 - **Never start without `pm-approved: true` in your mailbox**
 - **Never skip writing design.md** — implementation agents cannot start without it
-- **Never assign overlapping scope to two engineers** — the purpose of this gate is to prevent that
+- **Never assign overlapping scope across engineer lanes** — define one lane per non-overlapping module boundary (backend-1..N / frontend-1..N); the purpose of this gate is to prevent overlap
 - **Never propose a design pattern that contradicts existing codebase conventions** — adapt to what is already there
 
 ---
@@ -89,7 +89,7 @@ status: draft
 - **Response (success):** `{ field: type, ... }` — HTTP <status>
 - **Response (error):** `{ error: string, code: string }` — HTTP <status>
 - **Auth:** <required | none | scope needed>
-- **Owner:** backend-1 | backend-2
+- **Owner:** backend-1..N | frontend-1..N  (one lane per non-overlapping module boundary; size N to the work)
 
 ## Data Models
 [For each new or modified entity — omit section if no model changes]
