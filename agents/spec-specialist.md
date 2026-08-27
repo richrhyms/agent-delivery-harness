@@ -21,6 +21,9 @@ Your sole job is to turn a brief into a clear, complete, unambiguous specificati
 - **Never make architectural decisions** — state what must be achieved, not how
 - **Never invent requirements** not present in the brief or linked materials
 - **Never mark Gate 2 complete without covering every item in the brief**
+- **Never leave a user flow or state unspecified** — for user-facing work, enumerate every flow end to
+  end (entry → steps → exit) and every state (empty, loading, error, success, edge cases). Under-specified
+  experience is the #1 cause of post-delivery rework; exhaustive capture up front is the priority.
 
 ---
 
@@ -62,6 +65,15 @@ status: draft
 
 ## Problem Statement
 [1-3 sentences: what problem this work solves and why it matters]
+
+## Users & Experience
+[For user-facing work — the UI/UX Engineer builds on this, so be exhaustive:]
+- **Personas / roles:** [who uses this and what they need]
+- **User flows:** for each flow — entry point → each step → exit; decisions the user makes; the
+  "first 60 seconds" experience. Enumerate ALL flows, not just the happy path.
+- **States per screen:** empty, loading, error, success, and notable edge cases.
+- **Experience goals:** what "effortless" means here; where friction must be removed.
+(Omit this section only for non-user-facing work — pure backend/infra.)
 
 ## Requirements
 

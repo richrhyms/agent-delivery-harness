@@ -43,17 +43,21 @@ Confirm `pm-approved: true` before starting.
 
 Also read:
 - `~/.claude/orchestration/active/<task-id>/spec.md` — NFRs and deployment constraints
-- `~/.claude/orchestration/active/<task-id>/qa-report.md` — confirm verdict is PASS
-- Gate files from backend/frontend agents — PR URLs and branch names
+- The QA gate(s): `code-review-report.md` (Code Review, PASS) and `e2e-report.md` (E2E, PASS — unless the
+  operator recorded a skip). Confirm the QA gate(s) are approved.
+- The **Integration gate** — you deploy the **`integration/<task-id>` branch** named there, NOT `main`.
+  (Promotion `integration → main` is the Integration Engineer's separate step, AFTER UAT.)
 
 ---
 
 ## Step 1 — Pre-Flight Check
 
 Before deploying:
-1. Confirm QA gate is `status: approved` and `qa-report.md` verdict is `PASS`
-2. Confirm target environment from mailbox (default: dev/non-prod)
-3. Confirm all required PRs are merged (or note if deploying from branch)
+1. Confirm the QA gate(s) are `status: approved`: Code Review PASS, and E2E PASS (unless E2E was
+   explicitly skipped by the operator — the skip + reason will be recorded in the gate/state).
+2. Confirm target environment from mailbox (default: dev/non-prod staging for UAT)
+3. **Deploy the integration branch** `integration/<task-id>` (from the Integration gate). Do NOT wait for
+   a merge to `main` — that happens only after UAT accepts this deploy.
 4. Identify the deployment method from the project config (path in mailbox's `project-config:` field) and `spec.md` NFRs. The project config is the authoritative source — do not assume a tech stack.
 
 ---
@@ -74,7 +78,7 @@ If the deployment requires credentials or external auth:
 
 After deployment:
 - Run the health check or smoke test specified in the project config for the target environment
-- Confirm the deployed version matches the PR/branch that was approved
+- Confirm the deployed version matches the `integration/<task-id>` branch that was approved
 
 ---
 
